@@ -80,6 +80,9 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 		}
 		writeTimeToBuffer(buf, t)
 		writeTextTimeZoneToBuffer(buf, ds, t)
+	case StylePostgres:
+		buf.WriteString(t.Format("Mon Jan 2 15:04:05.999999 2006"))
+		writeTextTimeZoneToBuffer(buf, ds, t)
 	default:
 		switch ds.Order {
 		case OrderYMD:

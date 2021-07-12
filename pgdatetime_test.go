@@ -36,9 +36,9 @@ func Test(t *testing.T) {
 
 			tz, err := time.LoadLocation(inTZ)
 			if err != nil {
-				val, err2 := strconv.Atoi(inTZ)
-				if err2 != nil {
-					t.Fatalf("expected timezone offset or timezone name, found %s", inTZ)
+				val, valErr := strconv.Atoi(inTZ)
+				if valErr != nil {
+					t.Fatalf("expected timezone offset or timezone name, found %s (tz err: %s, val err: %s)", inTZ, err, valErr)
 				}
 				tz = time.FixedZone(fzp, val)
 			}
@@ -46,7 +46,7 @@ func Test(t *testing.T) {
 			require.NoError(t, err)
 
 			retStr := ""
-			for _, style := range []Style{StyleISO, StyleSQL, StyleGerman} {
+			for _, style := range []Style{StyleISO, StyleSQL, StyleGerman, StylePostgres} {
 				for _, order := range []Order{OrderYMD, OrderDMY, OrderMDY} {
 					retStr += fmt.Sprintf(
 						"%s/%s: %s\n",
