@@ -100,7 +100,7 @@ Postgres/YMD: Fri Dec 25 15:30:45.123456 2015
 Postgres/DMY: Fri Dec 25 15:30:45.123456 2015 
 Postgres/MDY: Fri Dec 25 15:30:45.123456 2015 
 
-test fixed_zone_prefix=hello
+test fixed_zone=hello
 2015-12-25 15:30:45.123456
 26108
 ----
@@ -116,3 +116,20 @@ German/MDY: 12.25.2015 15:30:45.123456 hello
 Postgres/YMD: Fri Dec 25 15:30:45.123456 2015 hello
 Postgres/DMY: Fri Dec 25 15:30:45.123456 2015 hello
 Postgres/MDY: Fri Dec 25 15:30:45.123456 2015 hello
+
+test fixed_zone_prefix=hello
+2015-12-25 15:30:45.123456
+-26108
+----
+ISO/YMD: 2015-12-25 15:30:45.123456-07:15:08
+ISO/DMY: 25-12-2015 15:30:45.123456-07:15:08
+ISO/MDY: 12-25-2015 15:30:45.123456-07:15:08
+SQL/YMD: 2015/12/25 15:30:45.123456 fixed offset
+SQL/DMY: 25/12/2015 15:30:45.123456 fixed offset
+SQL/MDY: 12/25/2015 15:30:45.123456 fixed offset
+German/YMD: 2015.12.25 15:30:45.123456 fixed offset
+German/DMY: 25.12.2015 15:30:45.123456 fixed offset
+German/MDY: 12.25.2015 15:30:45.123456 fixed offset
+Postgres/YMD: Fri Dec 25 15:30:45.123456 2015 fixed offset
+Postgres/DMY: Fri Dec 25 15:30:45.123456 2015 fixed offset
+Postgres/MDY: Fri Dec 25 15:30:45.123456 2015 fixed offset

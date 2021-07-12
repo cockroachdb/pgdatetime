@@ -1,7 +1,6 @@
 package pgdatetime
 
 import (
-	"flag"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,15 +11,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test(t *testing.T) {
-	flag.Parse()
-
+// TestFormat tests formatting works, and when formatted, will re-parse
+// to itself correctly.
+func TestFormat(t *testing.T) {
 	datadriven.RunTest(t, "testdata/format", func(t *testing.T, d *datadriven.TestData) string {
 		switch d.Cmd {
 		case "test":
+			fz := "fixed offset"
 			fzp := "fixed offset"
 			for _, arg := range d.CmdArgs {
 				switch arg.Key {
+				case "fixed_zone":
+					fz = arg.Vals[0]
 				case "fixed_zone_prefix":
 					fzp = arg.Vals[0]
 				default:
@@ -40,7 +42,7 @@ func Test(t *testing.T) {
 				if valErr != nil {
 					t.Fatalf("expected timezone offset or timezone name, found %s (tz err: %s, val err: %s)", inTZ, err, valErr)
 				}
-				tz = time.FixedZone(fzp, val)
+				tz = time.FixedZone(fz, val)
 			}
 			tt, err := time.ParseInLocation("2006-01-02 15:04:05.999999", inTime, tz)
 			require.NoError(t, err)
@@ -52,7 +54,7 @@ func Test(t *testing.T) {
 						"%s/%s: %s\n",
 						style,
 						order,
-						Format(DateStyle{Style: style, Order: order, FixedZonePrefix: "fixed offset"}, tt),
+						Format(DateStyle{Style: style, Order: order, FixedZonePrefix: fzp}, tt),
 					)
 				}
 			}
