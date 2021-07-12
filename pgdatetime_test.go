@@ -15,7 +15,7 @@ import (
 func Test(t *testing.T) {
 	flag.Parse()
 
-	datadriven.RunTest(t, "testdata/times", func(t *testing.T, d *datadriven.TestData) string {
+	datadriven.RunTest(t, "testdata/format", func(t *testing.T, d *datadriven.TestData) string {
 		switch d.Cmd {
 		case "test":
 			fzp := "fixed offset"
@@ -46,7 +46,7 @@ func Test(t *testing.T) {
 			require.NoError(t, err)
 
 			retStr := ""
-			for _, style := range []Style{StyleISO, StyleSQL} {
+			for _, style := range []Style{StyleISO, StyleSQL, StyleGerman} {
 				for _, order := range []Order{OrderYMD, OrderDMY, OrderMDY} {
 					retStr += fmt.Sprintf(
 						"%s/%s: %s\n",

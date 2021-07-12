@@ -45,6 +45,15 @@ func writeTimeToBuffer(buf *bytes.Buffer, t time.Time) {
 	buf.WriteString(t.Format(" 15:04:05.999999"))
 }
 
+func writeTextTimeZoneToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
+	buf.WriteRune(' ')
+	z, _ := t.Zone()
+	// Only write zone name if it exists.
+	if ds.FixedZonePrefix == "" || !strings.HasPrefix(z, ds.FixedZonePrefix) {
+		buf.WriteString(t.Format("MST"))
+	}
+}
+
 // WriteToBuffer writes the given time into the given buffer.
 func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 	switch ds.Style {
@@ -59,13 +68,18 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 		}
 
 		writeTimeToBuffer(buf, t)
-
-		buf.WriteRune(' ')
-		z, _ := t.Zone()
-		// Only write zone name if it exists.
-		if ds.FixedZonePrefix == "" || !strings.HasPrefix(z, ds.FixedZonePrefix) {
-			buf.WriteString(t.Format("MST"))
+		writeTextTimeZoneToBuffer(buf, ds, t)
+	case StyleGerman:
+		switch ds.Order {
+		case OrderYMD:
+			buf.WriteString(t.Format("2006.01.02"))
+		case OrderDMY:
+			buf.WriteString(t.Format("02.01.2006"))
+		default:
+			buf.WriteString(t.Format("01.02.2006"))
 		}
+		writeTimeToBuffer(buf, t)
+		writeTextTimeZoneToBuffer(buf, ds, t)
 	default:
 		switch ds.Order {
 		case OrderYMD:
