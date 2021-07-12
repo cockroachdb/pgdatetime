@@ -1,90 +1,65 @@
 package pgdatetime
 
 import (
+	"flag"
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/cockroachdb/datadriven"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseAndFormat(t *testing.T) {
-	california, err := time.LoadLocation("America/Los_Angeles")
-	require.NoError(t, err)
-	adelaide, err := time.LoadLocation("Australia/Adelaide")
-	require.NoError(t, err)
-	negativeSecondOffset := time.FixedZone("negative land", -(7*60*60 + 15*60 + 8))
-	positiveSecondOffset := time.FixedZone("positive land", (7*60*60 + 15*60 + 8))
+func Test(t *testing.T) {
+	flag.Parse()
 
-	testCases := []struct {
-		desc                   string
-		time                   time.Time
-		isoDMY, isoMDY, isoYMD string
-	}{
-		{
-			desc:   "california time",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 123456000, california),
-			isoDMY: "25-12-2015 15:30:45.123456-08",
-			isoMDY: "12-25-2015 15:30:45.123456-08",
-			isoYMD: "2015-12-25 15:30:45.123456-08",
-		},
-		{
-			desc:   "california time, less milliseconds",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 120400000, california),
-			isoDMY: "25-12-2015 15:30:45.1204-08",
-			isoMDY: "12-25-2015 15:30:45.1204-08",
-			isoYMD: "2015-12-25 15:30:45.1204-08",
-		},
-		{
-			desc:   "california time, no milliseconds",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 0, california),
-			isoDMY: "25-12-2015 15:30:45-08",
-			isoMDY: "12-25-2015 15:30:45-08",
-			isoYMD: "2015-12-25 15:30:45-08",
-		},
-		{
-			desc:   "utc time",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 123456000, time.UTC),
-			isoDMY: "25-12-2015 15:30:45.123456+00",
-			isoMDY: "12-25-2015 15:30:45.123456+00",
-			isoYMD: "2015-12-25 15:30:45.123456+00",
-		},
-		{
-			desc:   "adelaide time",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 123456000, adelaide),
-			isoDMY: "25-12-2015 15:30:45.123456+10:30",
-			isoMDY: "12-25-2015 15:30:45.123456+10:30",
-			isoYMD: "2015-12-25 15:30:45.123456+10:30",
-		},
-		{
-			desc:   "negative land time",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 123456000, negativeSecondOffset),
-			isoDMY: "25-12-2015 15:30:45.123456-07:15:08",
-			isoMDY: "12-25-2015 15:30:45.123456-07:15:08",
-			isoYMD: "2015-12-25 15:30:45.123456-07:15:08",
-		},
-		{
-			desc:   "positive land time",
-			time:   time.Date(2015, 12, 25, 15, 30, 45, 123456000, positiveSecondOffset),
-			isoDMY: "25-12-2015 15:30:45.123456+07:15:08",
-			isoMDY: "12-25-2015 15:30:45.123456+07:15:08",
-			isoYMD: "2015-12-25 15:30:45.123456+07:15:08",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			for _, it := range []struct {
-				order    Order
-				expected string
-			}{
-				{order: OrderMDY, expected: tc.isoMDY},
-				{order: OrderDMY, expected: tc.isoDMY},
-				{order: OrderYMD, expected: tc.isoYMD},
-			} {
-				t.Run(it.order.String(), func(t *testing.T) {
-					require.Equal(t, it.expected, Format(DateStyle{Style: StyleISO, Order: it.order}, tc.time))
-				})
+	datadriven.RunTest(t, "testdata/times", func(t *testing.T, d *datadriven.TestData) string {
+		switch d.Cmd {
+		case "test":
+			fzp := "fixed offset"
+			for _, arg := range d.CmdArgs {
+				switch arg.Key {
+				case "fixed_zone_prefix":
+					fzp = arg.Vals[0]
+				default:
+					t.Fatalf("arg unknown for cmd %s: %s", d.Cmd, arg.Key)
+				}
 			}
-		})
-	}
+
+			splitted := strings.Split(d.Input, "\n")
+			if len(splitted) != 2 {
+				t.Fatalf("expected two lines: one line with time, one line with time zone")
+			}
+			inTime, inTZ := splitted[0], splitted[1]
+
+			tz, err := time.LoadLocation(inTZ)
+			if err != nil {
+				val, err2 := strconv.Atoi(inTZ)
+				if err2 != nil {
+					t.Fatalf("expected timezone offset or timezone name, found %s", inTZ)
+				}
+				tz = time.FixedZone(fzp, val)
+			}
+			tt, err := time.ParseInLocation("2006-01-02 15:04:05.999999", inTime, tz)
+			require.NoError(t, err)
+
+			retStr := ""
+			for _, style := range []Style{StyleISO, StyleSQL} {
+				for _, order := range []Order{OrderYMD, OrderDMY, OrderMDY} {
+					retStr += fmt.Sprintf(
+						"%s/%s: %s\n",
+						style,
+						order,
+						Format(DateStyle{Style: style, Order: order, FixedZonePrefix: "fixed offset"}, tt),
+					)
+				}
+			}
+			return retStr
+		default:
+			t.Fatalf("command unknown: %s", d.Cmd)
+		}
+		return ""
+	})
 }

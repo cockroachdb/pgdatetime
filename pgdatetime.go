@@ -2,13 +2,14 @@ package pgdatetime
 
 import (
 	"bytes"
+	"strings"
 	"time"
 )
 
 // Order refers to the order of the date.
 type Order uint8
 
-//go:generate stringer -type=Order
+//go:generate stringer -type=Order -trimprefix=Order
 
 const (
 	OrderMDY Order = iota
@@ -19,7 +20,7 @@ const (
 // Style refers to the style of the date.
 type Style uint8
 
-//go:generate stringer -type=Style
+//go:generate stringer -type=Style -trimprefix=Style
 
 const (
 	StyleISO Style = iota
@@ -33,11 +34,38 @@ const (
 type DateStyle struct {
 	Order Order
 	Style Style
+
+	// FixedZonePrefix is set if we should ignore printing out the shorthand
+	// timezone if it begins with this prefix.
+	// Leave blank to always output timezone name.
+	FixedZonePrefix string
+}
+
+func writeTimeToBuffer(buf *bytes.Buffer, t time.Time) {
+	buf.WriteString(t.Format(" 15:04:05.999999"))
 }
 
 // WriteToBuffer writes the given time into the given buffer.
 func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 	switch ds.Style {
+	case StyleSQL:
+		switch ds.Order {
+		case OrderYMD:
+			buf.WriteString(t.Format("2006/01/02"))
+		case OrderDMY:
+			buf.WriteString(t.Format("02/01/2006"))
+		default:
+			buf.WriteString(t.Format("01/02/2006"))
+		}
+
+		writeTimeToBuffer(buf, t)
+
+		buf.WriteRune(' ')
+		z, _ := t.Zone()
+		// Only write zone name if it exists.
+		if ds.FixedZonePrefix == "" || !strings.HasPrefix(z, ds.FixedZonePrefix) {
+			buf.WriteString(t.Format("MST"))
+		}
 	default:
 		switch ds.Order {
 		case OrderYMD:
@@ -47,9 +75,10 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 		default:
 			buf.WriteString(t.Format("01-02-2006"))
 		}
+
+		writeTimeToBuffer(buf, t)
+
 		_, zoneOffset := t.Zone()
-		buf.WriteRune(' ')
-		buf.WriteString(t.Format("15:04:05.999999"))
 		if minOffsetInSecs := zoneOffset % 3600; minOffsetInSecs == 0 {
 			buf.WriteString(t.Format("-07"))
 		} else {
