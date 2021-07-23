@@ -2,6 +2,7 @@ package pgdatetime
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -40,6 +41,28 @@ type DateStyle struct {
 	// Leave blank to always output timezone name.
 	FixedZonePrefix string
 }
+
+// ParseError is an error that appears during parsing.
+type ParseError struct {
+	Description string
+	Idx         int
+}
+
+// NewParseError returns a ParseError with the given fields.
+func NewParseError(description string, idx int) *ParseError {
+	return &ParseError{Description: description, Idx: idx}
+}
+
+// Error implements the error interface.
+func (pe *ParseError) Error() string {
+	return fmt.Sprintf(
+		"error parsing datetime at index %d: %s",
+		pe.Idx,
+		pe.Description,
+	)
+}
+
+var _ error = (*ParseError)(nil)
 
 func writeTimeToBuffer(buf *bytes.Buffer, t time.Time) {
 	buf.WriteString(t.Format(" 15:04:05.999999"))

@@ -1,0 +1,95 @@
+test
+12
+----
+type: Number, val: 12, idx: 0
+
+test
+12:15
+----
+type: Time, val: 12:15, idx: 0
+
+test
+12.15
+----
+type: Number, val: 12.15, idx: 0
+
+test
+12.16.12
+----
+type: Date, val: 12.16.12, idx: 0
+
+test
+12/16
+----
+type: Date, val: 12/16, idx: 0
+
+test
+12/16/12
+----
+type: Date, val: 12/16/12, idx: 0
+
+test
+12:15:16.123
+----
+type: Time, val: 12:15:16.123, idx: 0
+
+test
+.567
+----
+type: Number, val: .567, idx: 0
+
+test
+15/Feb/2012
+----
+type: Date, val: 15/feb/2012, idx: 0
+
+test
+Feb/15/2012
+----
+type: Date, val: feb/15/2012, idx: 0
+
+test
+.123
+----
+type: Number, val: .123, idx: 0
+
+test
+tomorrow
+----
+type: String, val: tomorrow, idx: 0
+
+test
++ 123
+----
+type: TZ, val: + 123, idx: 0
+
+test
++ Bob
+----
+type: Special, val: + bob, idx: 0
+
+test
+/ February 12:15:16  Monday 2020 GMT-8
+----
+type: String, val: february, idx: 2
+type: Time, val: 12:15:16, idx: 11
+type: String, val: monday, idx: 21
+type: Number, val: 2020, idx: 28
+type: Date, val: gmt-8, idx: 33
+
+test
+Mon 12 Jan 2020 12:15:16 UTC
+----
+type: String, val: mon, idx: 0
+type: Number, val: 12, idx: 4
+type: String, val: jan, idx: 7
+type: Number, val: 2020, idx: 11
+type: Time, val: 12:15:16, idx: 16
+type: String, val: utc, idx: 25
+
+test
+20/12/2020 15:20:31.123+07
+----
+type: Date, val: 20/12/2020, idx: 0
+type: Time, val: 15:20:31.123, idx: 11
+type: TZ, val: +07, idx: 23
