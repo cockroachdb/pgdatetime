@@ -93,3 +93,9 @@ test
 type: Date, val: 20/12/2020, idx: 0
 type: Time, val: 15:20:31.123, idx: 11
 type: TZ, val: +07, idx: 23
+
+test
+12:15:19-08
+----
+type: Time, val: 12:15:19, idx: 0
+type: TZ, val: -08, idx: 8

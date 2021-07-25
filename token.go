@@ -6,36 +6,36 @@ import (
 	"unicode"
 )
 
-// dateTokenType maps to a DTK object in PostgreSQL.
-type dateTokenType int
+// tokenType maps to a DTK object in PostgreSQL.
+type tokenType int
 
-//go:generate stringer -type=dateTokenType -trimprefix=dateTokenType
+//go:generate stringer -type=tokenType -trimprefix=tokenType
 
 const (
-	// dateTokenTypeNumber can hold dates, e.g. (yy.dd)
-	dateTokenTypeNumber dateTokenType = iota
-	// dateTokenTypeString can hold months (e.g. January) or time zones (e.g. PST)
-	dateTokenTypeString
+	// tokenTypeNumber can hold dates, e.g. (yy.dd)
+	tokenTypeNumber tokenType = iota
+	// tokenTypeString can hold months (e.g. January) or time zones (e.g. PST)
+	tokenTypeString
 
-	// dateTokenTypeDate can hold time zones (e.g. GMT-8)
-	dateTokenTypeDate
-	dateTokenTypeTime
-	dateTokenTypeTZ
+	// tokenTypeDate can hold time zones (e.g. GMT-8)
+	tokenTypeDate
+	tokenTypeTime
+	tokenTypeTZ
 
-	dateTokenTypeSpecial
+	tokenTypeSpecial
 )
 
-// dateToken represents a date token component of a datetime.
-type dateToken struct {
-	dateTokenType dateTokenType
-	val           string
-	idx           int
+// token represents a date token component of a datetime.
+type token struct {
+	tokenType tokenType
+	val       string
+	idx       int
 }
 
-func tokenizeDateTime(s string) ([]dateToken, error) {
+func tokenizeDateTime(s string) ([]token, error) {
 	s = strings.ToLower(s)
 	i := 0
-	ret := []dateToken{}
+	ret := []token{}
 	isDigit := func(b byte) bool {
 		return unicode.IsDigit(rune(b))
 	}
@@ -45,10 +45,15 @@ func tokenizeDateTime(s string) ([]dateToken, error) {
 	isLetterOrDigit := func(b byte) bool {
 		return unicode.IsLetter(rune(b)) || unicode.IsDigit(rune(b))
 	}
-	appendDateToken := func(t dateTokenType, start int) {
+	advanceWhen := func(f func(b byte) bool) {
+		for i < len(s) && f(s[i]) {
+			i++
+		}
+	}
+	appendDateToken := func(t tokenType, start int) {
 		ret = append(
 			ret,
-			dateToken{dateTokenType: t, val: s[start:i], idx: start},
+			token{tokenType: t, val: s[start:i], idx: start},
 		)
 	}
 
@@ -59,23 +64,25 @@ func tokenizeDateTime(s string) ([]dateToken, error) {
 		switch {
 		case unicode.IsSpace(rune(s[i])):
 			// Ignore spaces.
-			i++
+			advanceWhen(func(b byte) bool {
+				return unicode.IsSpace(rune(b))
+			})
 		case isDigit(s[i]):
 			// Starting with a digit.
-			for ; i < len(s) && isDigit(s[i]); i++ {
-			}
+			advanceWhen(isDigit)
 			// If we've reached the end, treat it as a number.
 			if i >= len(s) {
-				appendDateToken(dateTokenTypeNumber, start)
+				appendDateToken(tokenTypeNumber, start)
 				break
 			}
 			switch s[i] {
 			case ':':
 				// It is a time element.
 				// Read the remaining time characters.
-				for ; i < len(s) && (isDigit(s[i]) || s[i] == ':' || s[i] == '.'); i++ {
-				}
-				appendDateToken(dateTokenTypeTime, start)
+				advanceWhen(func(b byte) bool {
+					return isDigit(b) || b == ':' || b == '.'
+				})
+				appendDateToken(tokenTypeTime, start)
 			case '-', '/', '.':
 				// It is a date element.
 				// Mark the delimiter.
@@ -83,55 +90,55 @@ func tokenizeDateTime(s string) ([]dateToken, error) {
 				i++
 				if i < len(s) && isDigit(s[i]) {
 					// Read the second set of digits if any.
-					for ; i < len(s) && isDigit(s[i]); i++ {
-					}
-
+					advanceWhen(isDigit)
 					// If it's two fields and separated by a '.', treat it as a number.
 					// Otherwise, treat two or three fields as a date.
-					t := dateTokenTypeDate
+					t := tokenTypeDate
 					if delimiter == '.' {
-						t = dateTokenTypeNumber
+						t = tokenTypeNumber
 					}
 					if i < len(s) && s[i] == delimiter {
-						t = dateTokenTypeDate
-						for ; i < len(s) && (isDigit(s[i]) || s[i] == delimiter); i++ {
-						}
+						t = tokenTypeDate
+						advanceWhen(func(b byte) bool {
+							return isDigit(b) || b == delimiter
+						})
 					}
 					appendDateToken(t, start)
 					break
 				}
 				// This could be a date with text, e.g. 13/Feb/2021.
-				for ; i < len(s) && (isLetterOrDigit(s[i]) || s[i] == delimiter); i++ {
-				}
-				appendDateToken(dateTokenTypeDate, start)
+				advanceWhen(func(b byte) bool {
+					return isLetterOrDigit(b) || b == delimiter
+				})
+				appendDateToken(tokenTypeDate, start)
 			default:
-				appendDateToken(dateTokenTypeNumber, start)
+				appendDateToken(tokenTypeNumber, start)
 			}
 		case s[i] == '.':
 			// Fractional seconds.
 			i++
-			for ; i < len(s) && isDigit(s[i]); i++ {
-			}
-			appendDateToken(dateTokenTypeNumber, start)
+			advanceWhen(isDigit)
+			appendDateToken(tokenTypeNumber, start)
 		case isLetter(s[i]):
 			// Text - could be date string, month, DOW, special or timezone.
-			for ; i < len(s) && isLetter(s[i]); i++ {
-			}
+			advanceWhen(isLetter)
 
-			t := dateTokenTypeString
+			t := tokenTypeString
 			// Could be a date with a leading text month.
 			if i < len(s) && (s[i] == '-' || s[i] == '/' || s[i] == '.') {
 				delimiter := s[i]
-				for ; i < len(s) && (isDigit(s[i]) || s[i] == delimiter); i++ {
-				}
-				t = dateTokenTypeDate
+				advanceWhen(func(b byte) bool {
+					return isDigit(b) || b == delimiter
+				})
+				t = tokenTypeDate
 			}
 			appendDateToken(t, start)
 		case s[i] == '+' || s[i] == '-':
 			// Timezone or special.
 			i++
-			for ; i < len(s) && unicode.IsSpace(rune(s[i])); i++ {
-			}
+			advanceWhen(func(b byte) bool {
+				return unicode.IsSpace(rune(b))
+			})
 			if i == len(s) {
 				return nil, NewParseError(
 					"expected letters or characters after + or -",
@@ -140,13 +147,13 @@ func tokenizeDateTime(s string) ([]dateToken, error) {
 			}
 			switch {
 			case isDigit(s[i]):
-				for ; i < len(s) && (isDigit(s[i]) || s[i] == ':' || s[i] == '.'); i++ {
-				}
-				appendDateToken(dateTokenTypeTZ, start)
+				advanceWhen(func(b byte) bool {
+					return isDigit(b) || b == ':' || b == '.'
+				})
+				appendDateToken(tokenTypeTZ, start)
 			case isLetter(s[i]):
-				for ; i < len(s) && isLetter(s[i]); i++ {
-				}
-				appendDateToken(dateTokenTypeSpecial, start)
+				advanceWhen(isLetter)
+				appendDateToken(tokenTypeSpecial, start)
 			default:
 				return nil, NewParseError(
 					"expected letters or characters after + or -",

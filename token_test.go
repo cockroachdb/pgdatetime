@@ -20,7 +20,7 @@ func TestTokenizeDateTime(t *testing.T) {
 			for _, token := range tokens {
 				ret = append(
 					ret,
-					fmt.Sprintf("type: %s, val: %s, idx: %d", token.dateTokenType, token.val, token.idx),
+					fmt.Sprintf("type: %s, val: %s, idx: %d", token.tokenType, token.val, token.idx),
 				)
 			}
 			return strings.Join(ret, "\n")
