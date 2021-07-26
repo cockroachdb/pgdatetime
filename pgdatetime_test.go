@@ -74,3 +74,34 @@ func TestFormat(t *testing.T) {
 		return ""
 	})
 }
+
+func TestParseDateStyle(t *testing.T) {
+	for _, tc := range []struct {
+		initial  DateStyle
+		parse    string
+		expected DateStyle
+	}{
+		{DefaultDateStyle(), "mdy", DateStyle{Style: StyleISO, Order: OrderMDY}},
+		{DefaultDateStyle(), "dmy", DateStyle{Style: StyleISO, Order: OrderDMY}},
+		{DefaultDateStyle(), "ymd", DateStyle{Style: StyleISO, Order: OrderYMD}},
+
+		{DefaultDateStyle(), "iso", DateStyle{Style: StyleISO, Order: OrderMDY}},
+		{DefaultDateStyle(), "german", DateStyle{Style: StyleGerman, Order: OrderMDY}},
+		{DefaultDateStyle(), "sql", DateStyle{Style: StyleSQL, Order: OrderMDY}},
+		{DefaultDateStyle(), "postgres", DateStyle{Style: StylePostgres, Order: OrderMDY}},
+
+		{DefaultDateStyle(), "german,dmy", DateStyle{Style: StyleGerman, Order: OrderDMY}},
+		{DefaultDateStyle(), "ymd,sql", DateStyle{Style: StyleSQL, Order: OrderYMD}},
+	} {
+		t.Run(fmt.Sprintf("%s/%s", tc.initial.String(), tc.parse), func(t *testing.T) {
+			p, err := ParseDateStyle(tc.parse, tc.initial)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, p)
+		})
+	}
+
+	t.Run("error", func(t *testing.T) {
+		_, err := ParseDateStyle("bad", DefaultDateStyle())
+		require.Error(t, err)
+	})
+}

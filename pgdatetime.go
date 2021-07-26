@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+// DefaultDateStyle returns the default datestyle for Postgres.
+func DefaultDateStyle() DateStyle {
+	return DateStyle{
+		Order: OrderMDY,
+		Style: StyleISO,
+	}
+}
+
 // Order refers to the order of the date.
 type Order uint8
 
@@ -40,6 +48,10 @@ type DateStyle struct {
 	// timezone if it begins with this prefix.
 	// Leave blank to always output timezone name.
 	FixedZonePrefix string
+}
+
+func (ds *DateStyle) String() string {
+	return fmt.Sprintf("DateStyle(%s,%s)", ds.Order, ds.Style)
 }
 
 // ParseError is an error that appears during parsing.
@@ -189,4 +201,32 @@ func Format(ds DateStyle, t time.Time, includeTimeZone bool) string {
 	var b bytes.Buffer
 	WriteToBuffer(&b, ds, t, includeTimeZone)
 	return b.String()
+}
+
+// ParseDateStyle parses a given DateStyle.
+func ParseDateStyle(s string, existingDateStyle DateStyle) (DateStyle, error) {
+	ds := existingDateStyle
+	fields := strings.Split(s, ",")
+	for _, field := range fields {
+		field = strings.ToLower(strings.TrimSpace(field))
+		switch field {
+		case "iso":
+			ds.Style = StyleISO
+		case "german":
+			ds.Style = StyleGerman
+		case "sql":
+			ds.Style = StyleSQL
+		case "postgres":
+			ds.Style = StylePostgres
+		case "ymd":
+			ds.Order = OrderYMD
+		case "mdy":
+			ds.Order = OrderMDY
+		case "dmy":
+			ds.Order = OrderDMY
+		default:
+			return ds, fmt.Errorf("unknown DateStyle parameter: %s", field)
+		}
+	}
+	return ds, nil
 }

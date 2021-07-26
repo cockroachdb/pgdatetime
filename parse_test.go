@@ -15,10 +15,7 @@ func TestParse(t *testing.T) {
 		now := time.Date(2020, 06, 26, 15, 16, 17, 123456000, time.UTC)
 		switch d.Cmd {
 		case "timestamptz":
-			dateStyle := DateStyle{
-				Order: OrderMDY,
-				Style: StyleISO,
-			}
+			dateStyle := DefaultDateStyle()
 			r, err := ParseTimestampTZ(dateStyle, now, d.Input)
 			require.NoError(t, err)
 			return fmt.Sprintf("%s\n%s", r.Type.String(), Format(dateStyle, r.Time, true /* includeTimeZone */))
