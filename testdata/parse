@@ -26,10 +26,10 @@ timestamptz datestyle=dmy
 07-09-02 15:16:17.242344
 ----
 AbsoluteTime
-0002-07-09 15:16:17.242344+00
+0002-09-07 15:16:17.242344+00
 
-timestamptz datestyle=mdy
+timestamptz datestyle=ymd
 07-09-02 15:16:17.242344
 ----
 AbsoluteTime
-0002-07-09 15:16:17.242344+00
+0007-09-02 15:16:17.242344+00

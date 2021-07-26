@@ -10,22 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParse(t *testing.T) {
-	datadriven.RunTest(t, "testdata/parse", func(t *testing.T, d *datadriven.TestData) string {
-		now := time.Date(2020, 06, 26, 15, 16, 17, 123456000, time.UTC)
-		switch d.Cmd {
-		case "timestamptz":
-			dateStyle := DefaultDateStyle()
-			r, err := ParseTimestampTZ(dateStyle, now, d.Input)
-			require.NoError(t, err)
-			return fmt.Sprintf("%s\n%s", r.Type.String(), Format(dateStyle, r.Time, true /* includeTimeZone */))
-		default:
-			t.Fatalf("command unknown: %s", d.Cmd)
-		}
-		return ""
-	})
-}
-
 func TestTokenizeDateTime(t *testing.T) {
 	datadriven.RunTest(t, "testdata/tokenize", func(t *testing.T, d *datadriven.TestData) string {
 		switch d.Cmd {
@@ -61,4 +45,32 @@ func TestTokenizeDateTimeError(t *testing.T) {
 			require.Equal(t, tc.err, err)
 		})
 	}
+}
+
+func TestParse(t *testing.T) {
+	datadriven.RunTest(t, "testdata/parse", func(t *testing.T, d *datadriven.TestData) string {
+		now := time.Date(2020, 06, 26, 15, 16, 17, 123456000, time.UTC)
+		switch d.Cmd {
+		case "timestamptz":
+			dateStyle := DefaultDateStyle()
+			for _, arg := range d.CmdArgs {
+				switch strings.ToLower(arg.Key) {
+				case "datestyle":
+					var err error
+					for _, val := range arg.Vals {
+						dateStyle, err = ParseDateStyle(val, dateStyle)
+						require.NoError(t, err)
+					}
+				default:
+					t.Fatalf("unknown key: %s", arg.Key)
+				}
+			}
+			r, err := ParseTimestampTZ(dateStyle, now, d.Input)
+			require.NoError(t, err)
+			return fmt.Sprintf("%s\n%s", r.Type.String(), Format(dateStyle, r.Time, true /* includeTimeZone */))
+		default:
+			t.Fatalf("command unknown: %s", d.Cmd)
+		}
+		return ""
+	})
 }
