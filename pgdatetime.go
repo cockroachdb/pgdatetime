@@ -116,6 +116,7 @@ func writeTextTimeZoneToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 
 // WriteToBuffer writes the given time into the given buffer.
 func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time, includeTimeZone bool) {
+	// In years <= 0, should as BC.
 	isBC := false
 	year := t.Year()
 	if year <= 0 {
@@ -144,17 +145,9 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time, includeTimeZone
 			writeTextTimeZoneToBuffer(buf, ds, t)
 		}
 	case StyleGerman:
-		switch ds.Order {
-		case OrderYMD:
-			outputYear()
-			buf.WriteString(t.Format(".01.02"))
-		case OrderDMY:
-			buf.WriteString(t.Format("02.01."))
-			outputYear()
-		default:
-			buf.WriteString(t.Format("01.02."))
-			outputYear()
-		}
+		// Always DMY for German.
+		buf.WriteString(t.Format("02.01."))
+		outputYear()
 		writeTimeToBuffer(buf, t)
 		if includeTimeZone {
 			writeTextTimeZoneToBuffer(buf, ds, t)
@@ -166,17 +159,9 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time, includeTimeZone
 			writeTextTimeZoneToBuffer(buf, ds, t)
 		}
 	default:
-		switch ds.Order {
-		case OrderYMD:
-			outputYear()
-			buf.WriteString(t.Format("-01-02"))
-		case OrderDMY:
-			buf.WriteString(t.Format("02-01-"))
-			outputYear()
-		default:
-			buf.WriteString(t.Format("01-02-"))
-			outputYear()
-		}
+		// Always YMD for ISO.
+		outputYear()
+		buf.WriteString(t.Format("-01-02"))
 
 		writeTimeToBuffer(buf, t)
 		if includeTimeZone {
