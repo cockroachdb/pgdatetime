@@ -48,14 +48,23 @@ func TestFormat(t *testing.T) {
 			require.NoError(t, err)
 
 			retStr := ""
-			for _, style := range []Style{StyleISO, StyleSQL, StyleGerman, StylePostgres} {
-				for _, order := range []Order{OrderYMD, OrderDMY, OrderMDY} {
-					retStr += fmt.Sprintf(
-						"%s/%s: %s\n",
-						style,
-						order,
-						Format(DateStyle{Style: style, Order: order, FixedZonePrefix: fzp}, tt),
-					)
+			for _, itz := range []struct {
+				prePrint string
+				include  bool
+			}{
+				{"with time zones", true},
+				{"no time zones", false},
+			} {
+				retStr += fmt.Sprintf("** %s **\n", itz.prePrint)
+				for _, style := range []Style{StyleISO, StyleSQL, StyleGerman, StylePostgres} {
+					for _, order := range []Order{OrderYMD, OrderDMY, OrderMDY} {
+						retStr += fmt.Sprintf(
+							"%s/%s: %s\n",
+							style,
+							order,
+							Format(DateStyle{Style: style, Order: order, FixedZonePrefix: fzp}, tt, itz.include),
+						)
+					}
 				}
 			}
 			return retStr
