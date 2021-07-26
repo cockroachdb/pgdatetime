@@ -116,15 +116,27 @@ func writeTextTimeZoneToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time) {
 
 // WriteToBuffer writes the given time into the given buffer.
 func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time, includeTimeZone bool) {
+	isBC := false
+	year := t.Year()
+	if year <= 0 {
+		year = -year + 1
+		isBC = true
+	}
+	outputYear := func() {
+		buf.WriteString(fmt.Sprintf("%04d", int64(year)))
+	}
 	switch ds.Style {
 	case StyleSQL:
 		switch ds.Order {
 		case OrderYMD:
-			buf.WriteString(t.Format("2006/01/02"))
+			outputYear()
+			buf.WriteString(t.Format("/01/02"))
 		case OrderDMY:
-			buf.WriteString(t.Format("02/01/2006"))
+			buf.WriteString(t.Format("02/01/"))
+			outputYear()
 		default:
-			buf.WriteString(t.Format("01/02/2006"))
+			buf.WriteString(t.Format("01/02/"))
+			outputYear()
 		}
 
 		writeTimeToBuffer(buf, t)
@@ -134,29 +146,36 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time, includeTimeZone
 	case StyleGerman:
 		switch ds.Order {
 		case OrderYMD:
-			buf.WriteString(t.Format("2006.01.02"))
+			outputYear()
+			buf.WriteString(t.Format(".01.02"))
 		case OrderDMY:
-			buf.WriteString(t.Format("02.01.2006"))
+			buf.WriteString(t.Format("02.01."))
+			outputYear()
 		default:
-			buf.WriteString(t.Format("01.02.2006"))
+			buf.WriteString(t.Format("01.02."))
+			outputYear()
 		}
 		writeTimeToBuffer(buf, t)
 		if includeTimeZone {
 			writeTextTimeZoneToBuffer(buf, ds, t)
 		}
 	case StylePostgres:
-		buf.WriteString(t.Format("Mon Jan 2 15:04:05.999999 2006"))
+		buf.WriteString(t.Format("Mon Jan 2 15:04:05.999999 "))
+		outputYear()
 		if includeTimeZone {
 			writeTextTimeZoneToBuffer(buf, ds, t)
 		}
 	default:
 		switch ds.Order {
 		case OrderYMD:
-			buf.WriteString(t.Format("2006-01-02"))
+			outputYear()
+			buf.WriteString(t.Format("-01-02"))
 		case OrderDMY:
-			buf.WriteString(t.Format("02-01-2006"))
+			buf.WriteString(t.Format("02-01-"))
+			outputYear()
 		default:
-			buf.WriteString(t.Format("01-02-2006"))
+			buf.WriteString(t.Format("01-02-"))
+			outputYear()
 		}
 
 		writeTimeToBuffer(buf, t)
@@ -173,6 +192,10 @@ func WriteToBuffer(buf *bytes.Buffer, ds DateStyle, t time.Time, includeTimeZone
 				}
 			}
 		}
+	}
+
+	if isBC {
+		buf.WriteString(" BC")
 	}
 }
 
