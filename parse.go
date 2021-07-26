@@ -171,6 +171,7 @@ type decodeTokenState struct {
 	hour, minute, second, nanos int
 	loc                         *time.Location
 	typ                         ParseResultType
+	is2DigitYear                bool
 
 	dateStyle DateStyle
 	now       time.Time
@@ -190,71 +191,139 @@ func (s *decodeTokenState) decodeDate(t token) error {
 		return nil
 	}
 
+	delimiterIdx := strings.IndexAny(t.val, "/-.")
+	if delimiterIdx == -1 {
+		return NewParseError(t.idx, "expected date separator but found none")
+	}
+	fields := strings.Split(t.val, t.val[delimiterIdx:delimiterIdx+1])
+	// TODO: text month
+	currLen := 0
+	for _, field := range fields {
+		if err := s.decodeNumber(token{val: field, idx: t.idx + currLen}); err != nil {
+			return err
+		}
+		currLen += len(field) + 1
+	}
 	return nil
 }
 
-func (s *decodeTokenState) decodeTime(t token) error {
-	str := t.val
+func (s *decodeTokenState) decodeNumber(t token) error {
 	i := 0
-	readDigits := func() (int, error) {
-		start := i
-		for i < len(str) && unicode.IsDigit(rune(str[i])) {
-			i++
-		}
-		ret, err := strconv.ParseInt(str[start:i], 10, 64)
-		if err != nil {
-			return 0, NewParseErrorf(t.idx+start, "error parsing digits: %s", err.Error())
-		}
-		return int(ret), nil
+	num, err := s.readDigits(t, &i)
+	if err != nil {
+		return err
 	}
+	// TODO: decimal point
+	// TODO: day of year
+	var seenMask Component
+	switch s.seen & ComponentDateMask {
+	case 0:
+		// We have not seen day, month or year.
+		if len(t.val) >= 3 || s.dateStyle.Order == OrderYMD {
+			// If it is 3 digits long, or YMD, assume it is a year.
+			seenMask |= ComponentYear
+			s.year = num
+		} else if s.dateStyle.Order == OrderDMY {
+			seenMask |= ComponentDay
+			s.day = num
+		} else {
+			seenMask |= ComponentMonth
+			s.month = num
+		}
+	case ComponentYear:
+		// If we've seen year, we're assuming MM of YYYY-MM-DD.
+		seenMask |= ComponentMonth
+		s.month = num
+	case ComponentMonth:
+		// TODO: check text month
+		// Must be at second field of MM-DD-YYYY
+		seenMask |= ComponentDay
+		s.day = num
+	case ComponentYear | ComponentMonth:
+		// TODO: check text month
+		// Must be at third field of YYYY-MM-DD.
+		seenMask |= ComponentDay
+		s.day = num
+	case ComponentDay:
+		// Must be at second field of DD-MM-YYYY.
+		seenMask |= ComponentMonth
+		s.month = num
+	case ComponentDay | ComponentMonth:
+		// Must be at third field of DD-MM-YYYY or MM-DD-YYYY.
+		seenMask |= ComponentYear
+		s.year = num
+	case ComponentDay | ComponentMonth | ComponentYear:
+		// TODO: have all three so it is time related.
+	}
+	if len(t.val) == 2 && seenMask == ComponentYear {
+		s.is2DigitYear = true
+	}
+	s.seen |= seenMask
+	return nil
+}
+
+func (s *decodeTokenState) readDigits(t token, i *int) (int, error) {
+	start := *i
+	for *i < len(t.val) && unicode.IsDigit(rune(t.val[*i])) {
+		*i++
+	}
+	ret, err := strconv.ParseInt(t.val[start:*i], 10, 64)
+	if err != nil {
+		return 0, NewParseErrorf(t.idx+*i+start, "error parsing digits: %s", err.Error())
+	}
+	return int(ret), nil
+}
+
+func (s *decodeTokenState) decodeTime(t token) error {
+	i := 0
 	if s.hasSeen(ComponentTimeMask) {
 		return NewParseErrorf(t.idx, "duplicate time Component: %s", t.val)
 	}
 	s.markSeen(ComponentTimeMask)
 	var err error
 	// Read hour.
-	s.hour, err = readDigits()
+	s.hour, err = s.readDigits(t, &i)
 	if err != nil {
 		return err
 	}
 	// Ensure we have a ':' separator.
-	if str[i] != ':' {
-		return NewParseErrorf(t.idx+i, "expected :, got %c", str[i])
+	if t.val[i] != ':' {
+		return NewParseErrorf(t.idx+i, "expected :, got %c", t.val[i])
 	}
 	i++
 	// Read minutes.
-	s.minute, err = readDigits()
+	s.minute, err = s.readDigits(t, &i)
 	if err != nil {
 		return err
 	}
 
-	// End of string, that's ok.
-	if i == len(str) {
+	// End of t.valing, that's ok.
+	if i == len(t.val) {
 		return nil
 	}
 
 	// Check for seconds and fractional seconds,
-	switch str[i] {
+	switch t.val[i] {
 	case ':':
 		i++
-		if i == len(str) {
+		if i == len(t.val) {
 			return NewParseErrorf(t.idx+i, "expected digits but none found")
 		}
-		s.second, err = readDigits()
+		s.second, err = s.readDigits(t, &i)
 		if err != nil {
 			return err
 		}
-		if i == len(str) {
+		if i == len(t.val) {
 			return nil
 		}
-		if str[i] == '.' {
+		if t.val[i] == '.' {
 			return s.decodeFractionalSecond(token{val: t.val[i:], idx: t.idx + i})
 		}
-		return NewParseErrorf(t.idx+i, "expected ., found %c", str[i])
+		return NewParseErrorf(t.idx+i, "expected ., found %c", t.val[i])
 	case '.':
 		return s.decodeFractionalSecond(token{val: t.val[i:], idx: t.idx + i})
 	}
-	return NewParseErrorf(t.idx+i, "expected : or ., found %c", str[i])
+	return NewParseErrorf(t.idx+i, "expected : or ., found %c", t.val[i])
 }
 
 func (s *decodeTokenState) decodeFractionalSecond(t token) error {

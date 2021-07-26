@@ -3,10 +3,8 @@ package pgdatetime
 // Component is a component of date or time.
 type Component uint64
 
-//go:generate stringer -type=Component -trimprefix=Component
-
 const (
-	ComponentNumber Component = iota
+	ComponentNumber Component = 1 << iota
 	ComponentString
 
 	ComponentDate
@@ -48,4 +46,5 @@ const (
 	ComponentISODOW
 
 	ComponentTimeMask = (ComponentHour | ComponentMinute | ComponentSecond)
+	ComponentDateMask = (ComponentDay | ComponentMonth | ComponentYear)
 )
